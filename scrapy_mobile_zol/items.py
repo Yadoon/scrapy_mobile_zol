@@ -21,3 +21,8 @@ class ScrapyMobileZolItem(scrapy.Item):
     phone_size = scrapy.Field()  # 主屏尺寸
     phone_info = scrapy.Field()  # 手机基本信息
     phone_brand = scrapy.Field()  # 手机品牌
+    os = scrapy.Field()  # 出厂系统内核
+    vendor_os = scrapy.Field()  # 操作系统
+    release_date = scrapy.Field()  # 上市日期
+    cpu_model = scrapy.Field()  # CPU型号
+    gpu_model = scrapy.Field()  # GPU型号

@@ -25,7 +25,7 @@
           `phone_size` varchar(32) DEFAULT '' COMMENT '主屏尺寸',
           `phone_info` varchar(512) DEFAULT '' COMMENT '手机基本信息',
           `phone_brand` varchar(32) DEFAULT '' COMMENT '手机品牌',
-          `create_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '创建时间',
+          `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
           `cpu_model` varchar(64) DEFAULT '' COMMENT 'CPU型号',
           `gpu_model` varchar(64) DEFAULT '' COMMENT 'GPU型号',
           PRIMARY KEY (`id`)

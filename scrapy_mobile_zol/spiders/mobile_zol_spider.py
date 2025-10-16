@@ -14,7 +14,7 @@ class MobileZolSpider(scrapy.Spider):
 
     # 测试时可以只爬取第一页，避免请求过多
     start_urls = []
-    for i in range(1, 2):  # 只爬取第一页用于测试
+    for i in range(1, 99):  # 只爬取第一页用于测试
         start_url = 'http://detail.zol.com.cn/cell_phone_index/subcate57_0_list_1_0_1_2_0_{}.html'.format(i)
         start_urls.append(start_url)
 
@@ -188,7 +188,7 @@ class MobileZolSpider(scrapy.Spider):
                 if os_elements:
                     vendor_os = os_elements.xpath("string()").extract_first().strip()
 
-            stats['vendor_os'] = vendor_os if vendor_os else ''
+            stats['vendor_os'] = vendor_os.split('>更多')[0].strip() if vendor_os else ''
             self.logger.info(f"操作系统: {stats['vendor_os']}")
 
             # 提取屏幕尺寸
@@ -209,6 +209,7 @@ class MobileZolSpider(scrapy.Spider):
                 if size_elements:
                     screen_size = size_elements.xpath("string()").extract_first().strip()
 
+
             # 提取英寸数字
             if screen_size:
                 try:
@@ -219,6 +220,9 @@ class MobileZolSpider(scrapy.Spider):
                     pass
             stats['screen_size'] = screen_size
             self.logger.info(f"屏幕尺寸: {stats['screen_size']}")
+            
+            # 填充phone_size字段（保持向后兼容）
+            stats['phone_size'] = screen_size if screen_size else 0.0
 
             # 提取CPU型号 - 只获取span标签内容，不包括后续的i标签和超链接
             cpu_model = None
@@ -277,6 +281,67 @@ class MobileZolSpider(scrapy.Spider):
 
             stats['gpu_model'] = gpu_model if gpu_model else ''
             self.logger.info(f"GPU型号: {stats['gpu_model']}")
+            
+            # 提取分辨率信息用于填充phone_x和phone_y
+            try:
+                # 尝试从参数页面提取分辨率信息 - 方法1:原始XPath
+                resolution = response.xpath(
+                    '//th[contains(text(), "分辨率") or contains(@title, "分辨率")]/following-sibling::td//text()').extract_first()
+                
+                # 方法2: 如果方法1失败，尝试更通用的XPath
+                if not resolution:
+                    resolution = response.xpath(
+                        '//*[contains(text(), "分辨率") or contains(@title, "分辨率")]/following::*[1]/text()').extract_first()
+                
+                # 方法3: 如果前两种方法都失败，尝试获取包含"x"的像素信息
+                if not resolution:
+                    resolution_elements = response.xpath(
+                        '//td[contains(text(), "x") and contains(text(), "像素")]/text()').extract()
+                    if resolution_elements:
+                        resolution = resolution_elements[0]
+                
+                # 打印调试信息
+                self.logger.debug(f"提取到的分辨率信息: {resolution}")
+                
+                if resolution:
+                    resolution = resolution.strip()
+                    # 匹配不同格式的分辨率，如1080x2340, 1080×2340, 1080× 2340等
+                    resolution_match = re.search(r"(\d+)\s*[x×]\s*(\d+)", resolution)
+                    if resolution_match:
+                        stats['phone_x'] = int(resolution_match.group(2))
+                        stats['phone_y'] = int(resolution_match.group(1))
+                    else:
+                        # 尝试直接从文本中提取数字
+                        nums = re.findall(r"\d+", resolution)
+                        if len(nums) >= 2:
+                            stats['phone_x'] = int(nums[1])
+                            stats['phone_y'] = int(nums[0])
+                        else:
+                            stats['phone_x'] = 0
+                            stats['phone_y'] = 0
+                else:
+                    stats['phone_x'] = 0
+                    stats['phone_y'] = 0
+                    self.logger.warning("未能提取到分辨率信息")
+            except Exception as e:
+                stats['phone_x'] = 0
+                stats['phone_y'] = 0
+                self.logger.error(f"提取分辨率时出错: {e}")
+                
+            # 生成phone_info字段 - 组合主要参数信息
+            phone_info_parts = []
+            if stats.get('phone_name'):
+                phone_info_parts.append(f"手机名称: {stats['phone_name']}")
+            if stats.get('screen_size'):
+                phone_info_parts.append(f"屏幕尺寸: {stats['screen_size']}")
+            if stats.get('cpu_model'):
+                phone_info_parts.append(f"CPU型号: {stats['cpu_model']}")
+            if stats.get('os'):
+                phone_info_parts.append(f"系统: {stats['os']}")
+            if stats.get('release_date'):
+                phone_info_parts.append(f"上市日期: {stats['release_date']}")
+                
+            stats['phone_info'] = ", ".join(phone_info_parts)
 
         except Exception as e:
             self.logger.error(f"提取参数时出错: {e}")
@@ -323,7 +388,7 @@ class MobileZolSpider(scrapy.Spider):
             # 获取手机分辨率
             try:
                 if len(phone_info_xpaths) > 0:
-                    phone_resolution = phone_info_xpaths[-1].xpath("text()").extract_first()
+                    phone_resolution = response.xpath('//*[contains(text(), "分辨率") or contains(@title, "分辨率")]/following::*[1]/text()').extract_first()
                     if phone_resolution:
                         try:
                             resolution_match = re.search(r"(\d+)x(\d+)", phone_resolution)

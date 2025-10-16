@@ -103,28 +103,98 @@ class ScrapyMobileZolPipeline(object):
             return True
         else:
             return False
+            
+    def data_update_all(self, item):
+        """更新数据库中的所有字段"""
+        try:
+            # 在执行任何操作前，检查并重连
+            self.conn.ping(reconnect=True)
+            update_sql = """
+                UPDATE spider_mobile_zol 
+                SET phone_name=%s,
+                    phone_price=%s,
+                    phone_parameter_url=%s,
+                    phone_x=%s,
+                    phone_y=%s,
+                    phone_size=%s,
+                    phone_info=%s,
+                    phone_brand=%s,
+                    os=%s,
+                    vendor_os=%s,
+                    release_date=%s,
+                    cpu_model=%s,
+                    gpu_model=%s 
+                WHERE phone_info_url=%s
+            """
+            
+            # 使用参数化查询以避免SQL注入
+            params = (
+                item['phone_name'],
+                item['phone_price'],
+                item['phone_parameter_url'],
+                item['phone_x'],
+                item['phone_y'],
+                item['phone_size'],
+                item['phone_info'],
+                item['phone_brand'],
+                item['os'],
+                item['vendor_os'],
+                item['release_date'],
+                item['cpu_model'],
+                item['gpu_model'],
+                item['phone_info_url']
+            )
+            
+            self.cursor.execute(update_sql, params)
+            self.conn.commit()
+            print(f"已更新手机数据: {item['phone_name']}")
+            return True
+        except Exception as e:
+            print(f"数据库更新错误: {e}")
+            self.conn.rollback()
+            return False
 
     def process_item(self, item, spider):
 
         # print(dict(item))
         res_data_select = self.data_select(item['phone_info_url'])
-        if self.data_update_price(phone_info_url=item['phone_info_url'], phone_price=item['phone_price']):
-            print('更新价格')
+        
+        # 确保所有必要的字段都有默认值
+        if 'phone_parameter_url' not in item:
+            item['phone_parameter_url'] = ''
+        if 'phone_x' not in item or item['phone_x'] is None:
+            item['phone_x'] = 0
+        if 'phone_y' not in item or item['phone_y'] is None:
+            item['phone_y'] = 0
+        if 'phone_size' not in item or item['phone_size'] is None:
+            item['phone_size'] = 0.0
+        if 'phone_info' not in item:
+            item['phone_info'] = ''
+        if 'phone_brand' not in item:
+            item['phone_brand'] = ''
+        if 'os' not in item:
+            item['os'] = ''
+        if 'vendor_os' not in item:
+            item['vendor_os'] = ''
+        if 'release_date' not in item:
+            item['release_date'] = ''
+        if 'cpu_model' not in item:
+            item['cpu_model'] = ''
+        if 'gpu_model' not in item:
+            item['gpu_model'] = ''
+        
+        # 如果记录存在，更新所有字段
+        if res_data_select:
+            self.data_update_all(item)
         else:
-            if not res_data_select:
-                print("增量数据")
-                # print(res_data_select)
-                # 增量数据
-                self.data_insert(phone_name=item['phone_name'], phone_price=item['phone_price'],
-                                 phone_info_url=item['phone_info_url'], phone_parameter_url=item['phone_parameter_url'],
-                                 phone_x=item['phone_x'], phone_y=item['phone_y'], phone_size=item['phone_size'],
-                                 phone_info=item['phone_info'], phone_brand=item['phone_brand'],
-                                 os=item['os'], vendor_os=item['vendor_os'], release_date=item['release_date'],
-                                 cpu_model=item['cpu_model'], gpu_model=item['gpu_model'])
-                # self.data_insert(dict(item))
-        # self.cursor.execute(insert_sql)
-        # # 提交，不进行提交无法保存到数据库
-        # self.conn.commit()
+            # 如果记录不存在，执行插入操作
+            print("增量数据")
+            self.data_insert(phone_name=item['phone_name'], phone_price=item['phone_price'],
+                             phone_info_url=item['phone_info_url'], phone_parameter_url=item['phone_parameter_url'],
+                             phone_x=item['phone_x'], phone_y=item['phone_y'], phone_size=item['phone_size'],
+                             phone_info=item['phone_info'], phone_brand=item['phone_brand'],
+                             os=item['os'], vendor_os=item['vendor_os'], release_date=item['release_date'],
+                             cpu_model=item['cpu_model'], gpu_model=item['gpu_model'])
 
         return item
 
