@@ -29,7 +29,7 @@
           `cpu_model` varchar(64) DEFAULT '' COMMENT 'CPU型号',
           `gpu_model` varchar(64) DEFAULT '' COMMENT 'GPU型号',
           PRIMARY KEY (`id`)
-        ) ENGINE=InnoDB AUTO_INCREMENT=901 DEFAULT CHARSET=utf8;
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
 
         SET FOREIGN_KEY_CHECKS = 1;
 
